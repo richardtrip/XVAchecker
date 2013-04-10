@@ -4,10 +4,11 @@
 #include <time.h>
 #include <openssl/sha.h>
 
-#define DEBUG 1
+#define DEBUG 0
 #define CHUNK 1048576 //Размер дискового блока
 #define TAR_BLK 512 //Размер TAR блока
 
+char temp[3];
 
 struct posix_header
 {                           /* Смещение */
@@ -30,8 +31,15 @@ struct posix_header
 
 };
 
-void sha2char()
+
+void sha2char(unsigned char *chunk_hash, char *string)
 {
+	memset(string,0,64);
+	for(int i=0; i<SHA_DIGEST_LENGTH; i++)
+	{
+		snprintf(temp, sizeof(temp), "%02x", chunk_hash[i]);
+		strcat(string,temp);
+	}
 }
 
 /**
@@ -84,6 +92,12 @@ struct posix_header *parse_header(unsigned char *block)
 	}
 }
 
+int xva_asm(char *filename)
+{
+	
+	return (0);
+}
+
 int xva_validate(char *filename)
 {
 	FILE *tar=fopen(filename,"r");
@@ -92,20 +106,19 @@ int xva_validate(char *filename)
 		puts("Error opening XVA");
 		return (1);
 	}
+	char ok=1;
 	clock_t start, end;
 	double cpu_time_used;
 	SHA_CTX ctx;
 	struct posix_header *header;
-	char temp[3];
 	unsigned char block[TAR_BLK];
 	char converted_hash[64];
 	unsigned char chunk_hash[SHA_DIGEST_LENGTH];
 	unsigned char prev_hash[SHA_DIGEST_LENGTH];
 	unsigned char tar_object[CHUNK];
-
+	int was_disk=0;
 	int br=0;
 	int count=0;
-	int is_sum=0;
 	start = clock();
 	//Читаем первый блок, должен быть заголовком
 	br=fread(block,1,sizeof(block),tar);
@@ -117,6 +130,7 @@ int xva_validate(char *filename)
 		return (1);
 	}
 	//Читаем заголовок
+
 	header=parse_header(block);
 	if(!header)
 	{
@@ -133,6 +147,7 @@ int xva_validate(char *filename)
 		if(br!=TAR_BLK)
 		{
 			puts("Tar block is not 512b! File may be truncated");
+			ok=0;
 			break;
 		}
 
@@ -161,8 +176,10 @@ int xva_validate(char *filename)
 		   Файл прочитан, проверяем, был это блок диска,
 		   контрольная сумма или может ova.xml
 		 */
+
 		if(strstr(header->name,".checksum"))
 		{
+			was_disk=0;
 			/*
 			   Это контрольная сумма.
 			   Блоки дисков записываются как
@@ -172,10 +189,28 @@ int xva_validate(char *filename)
 			   файл был его блоком. Здесь я полагаюсь исключительно
 			   на надежность источника.
 			 */
+			sha2char(prev_hash, converted_hash);
+
 			#if DEBUG
 			//раз дописывается нулями, то можно смело печатать
 			printf("Original block's SHA1: %s\n",tar_object);
+			printf("Actual block's SHA1: %s\n",converted_hash);
 			#endif
+
+			//сравниваем
+			if(strcmp((char *)converted_hash,(char *)tar_object)!=0)
+			{
+				puts("Disk chunk is corrupted!");
+				printf("filename: %s\n",header->name);
+				printf("Original block's SHA1: %s\n",tar_object);
+				printf("Actual block's SHA1: %s\n",converted_hash);
+				ok=0;
+				break;
+			}
+		}
+		else
+		{
+			was_disk=1;
 		}
 		//Сбрасываем счетчик
 		count=0;
@@ -204,12 +239,24 @@ int xva_validate(char *filename)
 		//Если размер не 512, это не может быть TAR архивом
 
 	}
+	if(!ok)
+	{
+		fclose (tar);
+		return (1);
+	}
+	else if(was_disk)
+	{
+		puts("File may be truncated: unmatched disk chunk");
+		fclose (tar);
+		return (1);
+	}
 	puts("End of file");
 	puts("XVA's integrity is OK");
 	end = clock();
 	cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 	printf("Finished in %fsecs\n",cpu_time_used);
 	fclose (tar);
+	return (0);
 }
 
 int main (int argc, char *argv[])
@@ -219,6 +266,7 @@ int main (int argc, char *argv[])
 		puts("Provide XVA filename");
 		return (1);
 	}
-	xva_validate(argv[1]);
+	//xva_validate(argv[1]);
+	xva_asm(argv[1]);
 	return 0;
 }
