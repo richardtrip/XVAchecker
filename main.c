@@ -128,9 +128,9 @@ int xva_validate(char *filename)
 	SHA1_Init(&ctx);
 	//Если это заголовок, то читаем дальше весь файл целиком
 	while((br=fread(block,1,sizeof(block),tar))>0)
-	{		
-		//Если размер не 512, это не может быть TAR архивом
-		if(br=!TAR_BLK)
+	{
+		//Если размер блока равен размеру TAR блока
+		if(br!=TAR_BLK)
 		{
 			puts("Tar block is not 512b! File may be truncated");
 			break;
@@ -154,6 +154,7 @@ int xva_validate(char *filename)
 		   Переполнение счетчика, это должен быть заголовок нового
 		   файла
 		 */
+
 		//Заканчиваем подсчет контрольной суммы
 		SHA1_Final(chunk_hash, &ctx);
 		/*
@@ -171,10 +172,10 @@ int xva_validate(char *filename)
 			   файл был его блоком. Здесь я полагаюсь исключительно
 			   на надежность источника.
 			 */
-					#if DEBUG
+			#if DEBUG
 			//раз дописывается нулями, то можно смело печатать
 			printf("Original block's SHA1: %s\n",tar_object);
-					#endif
+			#endif
 		}
 		//Сбрасываем счетчик
 		count=0;
@@ -199,6 +200,8 @@ int xva_validate(char *filename)
 		//Реинициализируем алгоритм
 		SHA1_Init(&ctx);
 
+
+		//Если размер не 512, это не может быть TAR архивом
 
 	}
 	puts("End of file");
