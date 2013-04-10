@@ -120,6 +120,7 @@ int xva_validate(char *filename)
 	int br=0;
 	int count=0;
 	start = clock();
+	puts("XVA check started, please wait");
 	//Читаем первый блок, должен быть заголовком
 	br=fread(block,1,sizeof(block),tar);
 	if(br=!TAR_BLK)
@@ -266,7 +267,7 @@ int main (int argc, char *argv[])
 		puts("Provide XVA filename");
 		return (1);
 	}
-	//xva_validate(argv[1]);
-	xva_asm(argv[1]);
+	xva_validate(argv[1]);
+	//xva_asm(argv[1]);
 	return 0;
 }
