@@ -78,7 +78,7 @@ struct posix_header *parse_header(unsigned char *block)
 	memcpy(temp,block+124,12);
 	temp[11]='\0';
 	h->size=strtol(temp,NULL,8);
-	//Контрольная сумма блока
+	//Контрольная сумма блока	
 	memcpy(temp,block+148,8);
 	temp[7]='\0';
 	h->chksum=strtol(temp,NULL,8);
@@ -94,7 +94,7 @@ struct posix_header *parse_header(unsigned char *block)
 	for(int i=0; i<TAR_BLK; i++) //Считаем сумму
 	{
 		sum+=block[i];
-	}
+	}	
 	//Если заголовок битый, возвращает NULL
 	if(h->chksum==sum)
 	{
@@ -138,6 +138,13 @@ int extract_file(char *filename, char *object)
 		fclose (tar);
 		return (1);
 	}
+	//Проверяем, возможно наш файл  -самый первый
+	if(strcmp(header->name, object)==0)
+	{
+		puts("File found");
+		fclose (tar);
+		return (1);
+	}
 	while((br=fread(block,1,sizeof(block),tar))==TAR_BLK)
 	{
 		/*
@@ -164,6 +171,11 @@ int extract_file(char *filename, char *object)
 		printf("filename: %s\n",header->name);
 		printf("filesize: %d\n",header->size);
 #endif
+		if(strcmp(header->name, object)==0)
+		{	
+		puts("File found");
+		break;
+		}
 
 	}
 	
@@ -193,13 +205,13 @@ int xva_validate(char *filename)
 	SHA_CTX ctx;
 	struct posix_header *header;
 	unsigned char block[TAR_BLK];
-	char converted_hash[64];
+	char converted_hash[64];	
 	unsigned char chunk_hash[SHA_DIGEST_LENGTH];
 	unsigned char prev_hash[SHA_DIGEST_LENGTH];
 	unsigned char tar_object[CHUNK];
 	int was_disk=0;
 	int br=0;
-	int count=0;
+	int count=0;	
 	start = clock();
 	puts("XVA check started, please wait");
 	//Читаем первый блок, должен быть заголовком	
@@ -257,7 +269,7 @@ int xva_validate(char *filename)
 		   Файл прочитан, проверяем, был это блок диска,
 		   контрольная сумма или может ova.xml
 		 */
-
+		//chksum=strstr(header->name,".checksum");
 		if(strstr(header->name,".checksum"))
 		{
 			was_disk=0;
@@ -295,6 +307,7 @@ int xva_validate(char *filename)
 		}
 		//Сбрасываем счетчик
 		count=0;
+		free(header);
 		//Пытаемся прочитать заголовок
 		header=parse_header(block);
 		/*
