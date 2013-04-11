@@ -31,6 +31,21 @@ struct posix_header
 
 };
 
+struct mbr_record
+{                           /* Смещение */
+
+
+};
+
+void usage(void)
+{
+	printf("XVA file checker\n");
+	printf("Usage:\n chkxva [options] <XVA filename>    verify integrity of XVA file\n\n");
+	printf("Options:\n");
+	printf(" -v\tVerbose output\n");
+	printf(" -o\tExtracts ova.xml alongside with application\n");
+	printf(" -m\tCreates metafile\n");
+}
 
 void sha2char(unsigned char *chunk_hash, char *string)
 {
@@ -92,9 +107,75 @@ struct posix_header *parse_header(unsigned char *block)
 	}
 }
 
+int extract_file(char *filename, char *object)
+{
+	int br=0, count=0;
+	unsigned char block[TAR_BLK];
+	struct posix_header *header;
+	
+	FILE *tar=fopen(filename,"r");
+	if(!tar)
+	{
+		puts("Error opening XVA");
+		return (1);
+	}
+	//Читаем первый блок, должен быть заголовком
+	
+	if((br=fread(block,1,sizeof(block),tar))!=TAR_BLK)
+	{
+		//Файл меньше 512 и он явно не TAR
+		puts("This is not TAR archive");
+		fclose (tar);
+		return (1);
+	}
+	//Читаем заголовок
+
+	header=parse_header(block);
+	if(!header)
+	{
+		//если вернулось 0 - заголовок битый или это не заголовок
+		puts("TAR header is corrupted or it is not a TAR");
+		fclose (tar);
+		return (1);
+	}
+	while((br=fread(block,1,sizeof(block),tar))==TAR_BLK)
+	{
+		/*
+		   Файл располагается в архиве как есть, только конец его
+		   дописывается до кратности 512 нулями. Поэтому смело считаем
+		   блоки, умножаем на 512 и как только оно превысит размер
+		   файла - мы достигли конца.
+		 */
+		if((count*TAR_BLK)<header->size)
+		{
+			//Записываем блок в буффер			
+			count++;
+			continue;
+		}		
+		count=0;
+		//Пытаемся прочитать заголовок
+		header=parse_header(block);		
+		if(!header)
+		{
+			break;
+		}
+		//Если это заголовок, то продолжаем
+#if DEBUG
+		printf("filename: %s\n",header->name);
+		printf("filesize: %d\n",header->size);
+#endif
+
+	}
+	
+	puts("End of file");		
+	fclose (tar);
+	return (0);
+	
+}
+
 int xva_asm(char *filename)
 {
-	
+
 	return (0);
 }
 
@@ -121,9 +202,8 @@ int xva_validate(char *filename)
 	int count=0;
 	start = clock();
 	puts("XVA check started, please wait");
-	//Читаем первый блок, должен быть заголовком
-	br=fread(block,1,sizeof(block),tar);
-	if(br=!TAR_BLK)
+	//Читаем первый блок, должен быть заголовком	
+	if((br=fread(block,1,sizeof(block),tar))!=TAR_BLK)
 	{
 		//Файл меньше 512 и он явно не TAR
 		puts("This is not TAR archive");
@@ -264,7 +344,7 @@ int main (int argc, char *argv[])
 {
 	if(argc<2)
 	{
-		puts("Provide XVA filename");
+		usage();
 		return (1);
 	}
 	xva_validate(argv[1]);
