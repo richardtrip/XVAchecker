@@ -1,5 +1,5 @@
 CC:=gcc
-CFLAGS:=-O0 -g3 -std=c99 -Wall
+CFLAGS:=-O3 -std=c99 -Wall
 LDFLAGS:=-lcrypto -static
 OBJ:= main.o 
 EXEC:=chkxva_$(shell uname -m)

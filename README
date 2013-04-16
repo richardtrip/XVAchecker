@@ -1,0 +1,10 @@
+This tool is created for checking integrity of XVA files that used
+by XCP Xen server for storing exported VMs.
+
+Installation:
+
+You have libcrypto installed in order to compile this tool then run 
+#make
+
+Usage is simple: chxva [xva filename]
+

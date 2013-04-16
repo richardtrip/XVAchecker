@@ -5,20 +5,20 @@
 #include <openssl/sha.h>
 
 #define DEBUG 0
-#define CHUNK 1048576 //Размер дискового блока
-#define TAR_BLK 512 //Размер TAR блока
+#define CHUNK 1048576 //Disk block size
+#define TAR_BLK 512 //TAR block size
 
 char temp[3];
 
 struct posix_header
-{                           /* Смещение */
+{                           /* Offset */
 	char name[100];         /*   0 */	
 	int size;               /* 124 */	
 	int chksum;             /* 148 */
 };
 
 struct mbr_record
-{                           /* Смещение */
+{                           /* Offset */
 
 
 };
@@ -43,45 +43,29 @@ void sha2char(unsigned char *chunk_hash, char *string)
 	}
 }
 
-/**
- * @name    parse_header
- * @brief   Функция проверяет файловый блок
- *
- * Эта функция проверяет TAR заголов и заполняет им структуру
- *
- * @param [in] block	512 байтный блок файла
- */
-
 struct posix_header *parse_header(unsigned char *block)
 {
 	struct posix_header *h = malloc(sizeof(*h));
 	unsigned int sum=0;
 	char temp[24];
-	//Имя файла
+	//Filename
 	memcpy(h->name,block,100);
 	h->name[99]='\0';
-	//Размер файла
+	//Filesize
 	memcpy(temp,block+124,12);
 	temp[11]='\0';
 	h->size=strtol(temp,NULL,8);
-	//Контрольная сумма блока	
+	//Header control sum
 	memcpy(temp,block+148,8);
 	temp[7]='\0';
 	h->chksum=strtol(temp,NULL,8);
-	/*
-	   *Теперь проверяем заголовок
-	   *Я делаю это не в начале просто потому, чтобы избежать
-	   *введения лишней переменной
-	   *Контрольная сумма это 8-меричная сумма всех беззнаковых байтов
-	   *заголовка, причем 8 байтный блок с контрольной суммой представляется как
-	   *заполненный пробелами
-	 */
-	memset(block+148,' ',8); //Заполняем место контрольной суммы пробелами
-	for(int i=0; i<TAR_BLK; i++) //Считаем сумму
+	
+	memset(block+148,' ',8); //Fill 8bytes of CS with spaces
+	for(int i=0; i<TAR_BLK; i++) //Sum
 	{
 		sum+=block[i];
 	}	
-	//Если заголовок битый, возвращает NULL
+	//Return NULL on errro
 	if(h->chksum==sum)
 	{
 		return h;
@@ -314,8 +298,6 @@ int xva_validate(char *filename)
 		memcpy(prev_hash,chunk_hash,sizeof(chunk_hash));
 		//Реинициализируем алгоритм
 		SHA1_Init(&ctx);
-
-
 		//Если размер не 512, это не может быть TAR архивом
 
 	}
